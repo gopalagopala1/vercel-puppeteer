@@ -1,6 +1,6 @@
 {
     "functions": {
-      "api/download-pdf.ts": {
+      "src/pages/api/download-pdf.ts": {
         "memory": 1024,
         "maxDuration": 60
       }
