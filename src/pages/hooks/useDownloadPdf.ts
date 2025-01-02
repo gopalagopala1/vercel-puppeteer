@@ -52,3 +52,5 @@ export const useDownloadPdf = () => {
     },
   });
 };
+
+export default useDownloadPdf;
