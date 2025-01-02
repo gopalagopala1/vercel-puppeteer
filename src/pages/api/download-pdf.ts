@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import chromium from "@sparticuz/chromium-min";
+import chromium from "@sparticuz/chromium";
 import puppeteer from "puppeteer-core";
 
 export default async function handler(
@@ -14,14 +14,15 @@ export default async function handler(
       return res.status(400).json({ error: "URL is required" });
     }
 
-    // Call the executablePath function
-    const executablePath = await chromium.executablePath();
+    // Configure chrome for lambda
+    chromium.setHeadlessMode = true;
+    chromium.setGraphicsMode = false;
 
     browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      executablePath, // Now this is a string from the async function call
-      headless: chromium.headless,
+      executablePath: await chromium.executablePath(),
+      headless: true,
       ignoreHTTPSErrors: true,
     });
 
@@ -30,12 +31,6 @@ export default async function handler(
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
     );
-
-    await page.setViewport({
-      width: 1200,
-      height: 800,
-      deviceScaleFactor: 1,
-    });
 
     await page.goto(url, {
       waitUntil: "networkidle0",
@@ -67,6 +62,7 @@ export default async function handler(
     console.error("PDF Generation Error:", {
       error,
       env: process.env.NODE_ENV,
+      chromiumPath: await chromium.executablePath(),
     });
 
     if (browser) {

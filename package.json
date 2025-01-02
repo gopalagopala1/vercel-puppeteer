@@ -13,7 +13,7 @@
     "@chakra-ui/react": "^2.10.4",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
-    "@sparticuz/chromium-min": "^121.0.0",
+    "@sparticuz/chromium": "^121.0.0",
     "puppeteer-core": "^21.0.0",
     "@tanstack/react-query": "^5.62.11",
     "@tanstack/react-query-devtools": "^5.62.11",
