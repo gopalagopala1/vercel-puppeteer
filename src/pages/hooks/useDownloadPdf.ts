@@ -41,7 +41,7 @@ const downloadPdf = async (url: string) => {
   
       return blob;
     } catch (e) {
-      console.error("PDF download failed:", e);
+      console.error("PDF download failsed: ", e);
       throw e;
     }
   };
