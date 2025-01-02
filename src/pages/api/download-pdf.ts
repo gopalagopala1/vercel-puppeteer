@@ -25,7 +25,7 @@ export default async function handler(
       process.env.NODE_ENV === "production"
         ? await chrome.executablePath
         : process.env.CHROME_PATH ||
-          "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+          "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" 
 
     browser = await puppeteer.launch({
       args: [
@@ -34,7 +34,7 @@ export default async function handler(
         "--disable-dev-shm-usage",
         "--font-render-hinting=none",
       ],
-      executablePath,
+      executablePath: executablePath as string,
       headless: true,
     });
 
