@@ -23,25 +23,29 @@ const downloadPdf = async (url: string) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ url }),
+        // Add timeout to fetch request
+        signal: AbortSignal.timeout(60000) // 60 second timeout
       });
   
       if (!response.ok) {
-        // Get error details from response if available
         const errorText = await response.text();
         throw new Error(
           `HTTP error! status: ${response.status}, details: ${errorText}`
         );
       }
   
-      return response.blob();
+      const blob = await response.blob();
+      if (!blob || blob.size === 0) {
+        throw new Error('Received empty PDF');
+      }
+  
+      return blob;
     } catch (e) {
-      // Re-throw the error instead of just logging it
       console.error("PDF download failed:", e);
       throw e;
     }
   };
 
-  
 export const useDownloadPdf = () => {
   return useMutation({
     mutationFn: downloadPdf,

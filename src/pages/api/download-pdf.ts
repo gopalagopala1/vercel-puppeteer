@@ -1,110 +1,122 @@
+//@ts-nocheck
 import type { NextApiRequest, NextApiResponse } from "next";
-import puppeteer from "puppeteer-core";
+import puppeteer from "puppeteer";  // Use regular puppeteer for development
 import chrome from "@sparticuz/chromium";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // const token = await getToken({ req });
+    let browser;
+  
+    try {
+      const { url } = req.body;
+  
+      if (!url) {
+        return res.status(400).json({ error: "URL is required" });
+      }
+  
+      browser = await puppeteer.launch({
+        args: [...chrome.args],
+        executablePath: await chrome.executablePath(),
+        headless: chrome.headless,
+        defaultViewport: chrome.defaultViewport,
+      });
+  
 
-  // if (!token) {
-  //     return res.status(401).json({ error: "Unauthorized" });
-  // }
+    // Create a new page with timeout
+    const page = await Promise.race([
+      browser.newPage(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Page creation timeout')), 30000)
+      )
+    ]);
 
-  let browser;
-  try {
-    const { url } = req.body;
-
-    if (!url) {
-      return res.status(400).json({ error: "URL is required" });
-    }
-
-    // Different configuration based on environment
-    const executablePath =
-      process.env.NODE_ENV === "production"
-        ? await chrome.executablePath
-        : process.env.CHROME_PATH ||
-          "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" 
-
-    browser = await puppeteer.launch({
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--font-render-hinting=none",
-      ],
-      executablePath: executablePath as string,
-      headless: true,
+    // Enable request interception to handle timeouts
+    await page.setRequestInterception(true);
+    page.on('request', request => {
+      // Add timeout to all requests
+      Promise.race([
+        request.continue(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), 30000)
+        )
+      ]).catch(() => request.abort());
     });
 
-    const page = await browser.newPage();
-    console.log("page: ", page);
+    // Set viewport and user agent
+    await page.setViewport({ width: 1200, height: 800 });
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    );
 
-    // Inject fonts directly
-    await page.evaluateHandle(() => {
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href =
-        "https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap";
-      document.head.appendChild(link);
-      return document.fonts.ready;
-    });
+    // Navigate to the page with timeout handling
+    await Promise.race([
+      page.goto(url, {
+        waitUntil: "networkidle0",
+        timeout: 30000,
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Navigation timeout')), 30000)
+      )
+    ]);
 
-    // const cookies = req.headers.cookie;
+    // Wait for any fonts to load
+    await Promise.race([
+      page.evaluate(() => document.fonts.ready),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Font loading timeout')), 10000)
+      )
+    ]);
 
-    // if (cookies) {
-    //     const cookiesArray = cookies.split(";").map((cookie) => {
-    //         const [name, value] = cookie.split("=").map((c) => c.trim());
-    //         return {
-    //             name,
-    //             value,
-    //             domain: new URL(url).hostname,
-    //         };
-    //     });
-
-    //     await page.setCookie(...cookiesArray);
-    // }
-
-    console.log("page 2: ", page);
-
-    await page.goto(url, {
-      waitUntil: ["networkidle0", "domcontentloaded"],
-      timeout: 30000,
-    });
-
-    // await page.waitForSelector("#MainContent", { timeout: 30000 });
-
-    await page.evaluate(() => document.fonts.ready);
-
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      preferCSSPageSize: true,
-      displayHeaderFooter: true,
-      margin: {
-        top: "90px",
-        bottom: "32px",
-        left: "32px",
-        right: "32px",
-      },
-    });
+    // Generate PDF with timeout
+    const pdf = await Promise.race([
+      page.pdf({
+        format: "A4",
+        printBackground: true,
+        preferCSSPageSize: true,
+        margin: {
+          top: "90px",
+          bottom: "32px",
+          left: "32px",
+          right: "32px",
+        }
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('PDF generation timeout')), 30000)
+      )
+    ]);
 
     await browser.close();
 
+    // Set response headers and send PDF
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
       "attachment; filename=shelter-details.pdf"
     );
+    
+    return res.status(200).send(pdf);
 
-    res.status(200).end(pdf);
   } catch (error) {
-    console.error("PDF Generation Error:", error);
+    console.error("PDF Generation Error:", {
+      message: error.message,
+      stack: error.stack,
+      env: process.env.NODE_ENV
+    });
+
     if (browser) {
-      await browser.close();
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.error("Error closing browser:", closeError);
+      }
     }
-    return res.status(500).json({ error: "Failed to generate PDF" });
+
+    return res.status(500).json({ 
+      error: "Failed to generate PDF",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 }
 
