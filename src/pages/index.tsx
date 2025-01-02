@@ -1,7 +1,7 @@
 'use client'
 
 import { Inter } from 'next/font/google'
-import useDownloadPdf from './hooks/useDownloadPdf';
+import {useDownloadPdf} from './hooks/useDownloadPdf';
 
 
 const inter = Inter({ subsets: ['latin'] })
