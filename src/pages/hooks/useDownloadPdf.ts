@@ -40,7 +40,6 @@ const downloadPdf = async (url: string) => {
       throw e;
     }
   };
-
 export const useDownloadPdf = () => {
   return useMutation({
     mutationFn: downloadPdf,
@@ -53,4 +52,6 @@ export const useDownloadPdf = () => {
   });
 };
 
-export default useDownloadPdf;
+export default function add () {
+    return 5;
+}
